@@ -45,11 +45,26 @@ module Technoweenie # :nodoc:
           elsif size.is_a?(String) && size =~ /^c.*$/ # Image cropping - example geometry string: c75x75
             dimensions = size[1..size.size].split("x")
             img.crop_resized!(dimensions[0].to_i, dimensions[1].to_i)
+          elsif size.is_a?(String) && size =~ /^s.*$/ # Patch to enable sharpening
+            bw = img.columns
+            bh = img.rows
+            base = bw > bh ? bw : bh;
+            if (base <= 800)
+              sigma = 1.0
+            elsif (base <= 1600)
+              sigma = 2.85
+            else
+              sigma = 3.8
+            end
+            img = img.sharpen(1, sigma)
+            size = size.slice(1..-1)
+            img.change_geometry(size.to_s) { |cols, rows, image| image.resize!(cols<1 ? 1 : cols, rows<1 ? 1 : rows) }
           else
             img.change_geometry(size.to_s) { |cols, rows, image| image.resize!(cols<1 ? 1 : cols, rows<1 ? 1 : rows) }
           end
           img.strip! unless attachment_options[:keep_profile]
-          temp_paths.unshift write_to_temp_file(img.to_blob)
+          # Keep the quality high
+          temp_paths.unshift write_to_temp_file(img.to_blob {self.quality = 100})
         end
       end
     end
